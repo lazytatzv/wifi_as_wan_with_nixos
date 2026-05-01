@@ -1,0 +1,10 @@
+[Security]
+EAP-Method=PEAP
+EAP-Identity=your_id@example.ac.jp
+EAP-PEAP-Phase2-Method=MSCHAPV2
+EAP-PEAP-Phase2-Identity=your_id@example.ac.jp
+EAP-PEAP-Phase2-Password=your_password
+# EAP-PEAP-CACert=/etc/ssl/certs/ca-certificates.crt
+
+[Settings]
+AutoConnect=true
