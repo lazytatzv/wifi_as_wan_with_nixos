@@ -10,13 +10,38 @@
       ./hardware-configuration.nix
     ];
 
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
   # Use the systemd-boot EFI boot loader.
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
+  boot.kernelPackages = pkgs.linuxPackages_zen;
 
-  
+  powerManagement.cpuFreqGovernor = "performance";
+
+  nix.settings.auto-optimise-store = true; 
+
+  nix.gc = {
+    automatic = true;
+    dates = "weekly";
+    options = "--delete-older-than 7d"; 
+  };
+
+  nix.settings.cores = 0;
+  nix.settings.max-jobs = "auto";
+
+  zramSwap.enable = true;
+
+  # TCP BBR 輻輳制御アルゴリズム
+  boot.kernelModules = [ "tcp_bbr" ];
   boot.kernel.sysctl = {
     "net.ipv4.ip_forward" = 1;
+    "net.core.default_qdisc" = "fq";
+    "net.ipv4.tcp_congestion_control" = "bbr";
+    "vm.swappiness" = 100;
+    "vm.watermark_boost_factor" = 0;
+    "vm.watermark_scale_factor" = 125;
+    "vm.page-cluster" = 0; 
   };
 
   # ===== iwd =====
@@ -36,13 +61,14 @@
   systemd.network.enable = true;
 
   services.resolved.enable = false;
+  networking.resolvconf.enable = false;
+
+  environment.etc."resolv.conf".text = ''
+  nameserver 127.0.0.1
+  '';
 
   # networkd settings
-  # wifi
-  systemd.network.networks."90-wifi" = {
-    matchConfig.Name = "wlan0";
-    networkConfig.DHCP = "ipv4";
-  };
+  # 上流wifi管理はnetworkdではなくiwdに任せる
 
   # wired config
   systemd.network.networks."10-lan" = {
@@ -62,12 +88,17 @@
     internalInterfaces = [ "enp2s0" ];
   };
 
+
+  #networking.nameservers = [ "1.1.1.1" "8.8.8.8" ];
+
   services.dnsmasq = {
     enable = true;
   
     settings = {
       interface = "enp2s0";
       bind-interfaces = true;
+
+      listen-address = "127.0.0.1,192.168.50.1";
   
       # IMPORTANT: avoids early boot race crashes
       dhcp-authoritative = true;
@@ -92,6 +123,25 @@
   
     resolveLocalQueries = false;
   };
+
+  # vpn
+  services.tailscale = {
+    enable = true;
+    extraUpFlags = [ "--accept-dns=false" ];
+  };
+
+  # nas
+  services.nfs.server.enable = true;
+
+  services.nfs.server.exports = ''
+    /data 192.168.50.0/24(rw,sync,no_subtree_check)
+    /data 100.64.0.0/10(rw,sync,no_subtree_check)
+  '';
+
+  services.nfs.server.statdPort = 4000;
+  services.nfs.server.lockdPort = 4001;
+  services.nfs.server.mountdPort = 4002;
+
 
   # networking.hostName = "nixos"; # Define your hostname.
 
@@ -183,6 +233,11 @@
     fish
     nano
     neovim
+
+    htop
+
+    git
+    usbutils
     
   ];
 
@@ -208,8 +263,8 @@
   # my firewall settings
   networking.firewall = {
     enable = true;
-    allowedTCPPorts = [ 22 ];
-    allowedUDPPorts = [ 53 67 68 ];
+    allowedTCPPorts = [ 22 2049 4000 4001 4002 ];
+    allowedUDPPorts = [ 53 67 68 2049 4000 4001 4002 ];
     checkReversePath = false;
     allowPing = true;
   };
