@@ -8,6 +8,7 @@
   imports =
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
+      ./wifi-as-wan.nix
     ];
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
@@ -32,97 +33,16 @@
 
   zramSwap.enable = true;
 
-  # TCP BBR 輻輳制御アルゴリズム
-  boot.kernelModules = [ "tcp_bbr" ];
-  boot.kernel.sysctl = {
-    "net.ipv4.ip_forward" = 1;
-    "net.core.default_qdisc" = "fq";
-    "net.ipv4.tcp_congestion_control" = "bbr";
-    "vm.swappiness" = 100;
-    "vm.watermark_boost_factor" = 0;
-    "vm.watermark_scale_factor" = 125;
-    "vm.page-cluster" = 0; 
-  };
-
-  # ===== iwd =====
-  networking.wireless.iwd.enable = true;
-  
-  networking.wireless.iwd.settings = {
-    Network = {
-      EnableIPv6 = true;
-    };
-    Settings = {
-      AutoConnect = true;
-    };
-  };
-  # ===============
-
-  # systemd-networkd
-  systemd.network.enable = true;
-
-  services.resolved.enable = false;
-  networking.resolvconf.enable = false;
-
-  environment.etc."resolv.conf".text = ''
-  nameserver 127.0.0.1
-  '';
-
-  # networkd settings
-  # 上流wifi管理はnetworkdではなくiwdに任せる
-
-  # wired config
-  systemd.network.networks."10-lan" = {
-    matchConfig.Name = "enp2s0";
-  
-    address = [ "192.168.50.1/24" ];
-  
-    networkConfig = {
-      DHCP = "no";
-      ConfigureWithoutCarrier = "yes";
-    };
-  };
-
-  networking.nat = {
+  # ==========================================
+  # WiFi as WAN Router Module
+  # ==========================================
+  services.wifi-as-wan = {
     enable = true;
     externalInterface = "wlan0";
-    internalInterfaces = [ "enp2s0" ];
+    internalInterface = "enp2s0";
+    internalIp = "192.168.50.1";
   };
-
-
-  #networking.nameservers = [ "1.1.1.1" "8.8.8.8" ];
-
-  services.dnsmasq = {
-    enable = true;
-  
-    settings = {
-      interface = "enp2s0";
-      bind-interfaces = true;
-
-      listen-address = "127.0.0.1,192.168.50.1";
-  
-      # IMPORTANT: avoids early boot race crashes
-      dhcp-authoritative = true;
-  
-      dhcp-range = "192.168.50.100,192.168.50.200,255.255.255.0,12h";
-  
-      dhcp-option = [
-        "option:router,192.168.50.1"
-        "option:dns-server,192.168.50.1"
-      ];
-  
-      # upstream DNS
-      server = [
-        "1.1.1.1"
-        "8.8.8.8"
-      ];
-  
-      # prevents weird resolver conflicts
-      no-resolv = true;
-      cache-size = 1000;
-    };
-  
-    resolveLocalQueries = false;
-  };
+  # ==========================================
 
   # vpn
   services.tailscale = {
@@ -144,10 +64,6 @@
 
 
   # networking.hostName = "nixos"; # Define your hostname.
-
-  # Configure network connections interactively with nmcli or nmtui.
-  # Don't use NetworkManager!!!!!
-  networking.networkmanager.enable = false;
 
   # Set your time zone.
   # I live in Japan
@@ -264,7 +180,7 @@
   networking.firewall = {
     enable = true;
     allowedTCPPorts = [ 22 2049 4000 4001 4002 ];
-    allowedUDPPorts = [ 53 67 68 2049 4000 4001 4002 ];
+    allowedUDPPorts = [ 2049 4000 4001 4002 ];
     checkReversePath = false;
     allowPing = true;
   };
@@ -295,4 +211,3 @@
   system.stateVersion = "25.11"; # Did you read the comment?
 
 }
-
