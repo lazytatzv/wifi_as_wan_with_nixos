@@ -94,7 +94,7 @@ iwctl
 
 #### Eduroam (802.1X) の設定について
 
-EduroamなどのWPA2-Enterpriseネットワークに接続する場合、`/var/lib/iwd/<SSID>.8021x`（例: `eduroam.8021x`）を作成して設定を記述します。本リポジトリに [eduroam.8021x.example](./eduroam.8021x.example) を用意しています。
+EduroamなどのWPA2-Enterpriseネットワークに接続する場合、`/var/lib/iwd/<SSID>.8021x`（例: `eduroam.8021x`）を作成して設定を記述します。本リポジトリに [`eduroam.8021x.example`](https://github.com/lazytatzv/wifi_as_wan_with_nixos/blob/main/eduroam.8021x.example) を用意しています。
 
 **PEAP + MSCHAPV2 の場合 (一般的):**
 
